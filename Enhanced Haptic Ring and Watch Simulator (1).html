@@ -1,0 +1,396 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Enhanced Haptic Ring and Watch Simulator</title>
+  <style>
+    *, ::before, ::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: ui-sans-serif, system-ui, sans-serif; }
+    .bg-gray-100 { background-color: #f3f4f6; }
+    .flex { display: flex; }
+    .flex-col { flex-direction: column; }
+    .items-center { align-items: center; }
+    .justify-center { justify-content: center; }
+    .justify-between { justify-content: space-between; }
+    .h-screen { height: 100vh; }
+    .bg-white { background-color: #fff; }
+    .p-4 { padding: 1rem; }
+    .rounded-lg { border-radius: 0.5rem; }
+    .shadow-lg { box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
+    .w-full { width: 100%; }
+    .max-w-md { max-width: 28rem; }
+    .text-2xl { font-size: 1.5rem; }
+    .font-bold { font-weight: 700; }
+    .mb-4 { margin-bottom: 1rem; }
+    .text-center { text-align: center; }
+    .text-lg { font-size: 1.125rem; }
+    .font-semibold { font-weight: 600; }
+    .border { border: 1px solid #e5e7eb; }
+    .p-2 { padding: 0.5rem; }
+    .rounded { border-radius: 0.25rem; }
+    .mb-2 { margin-bottom: 0.5rem; }
+    .bg-blue-500 { background-color: #3b82f6; }
+    .text-white { color: #fff; }
+    .hover\:bg-blue-600:hover { background-color: #2563eb; }
+    .bg-green-500 { background-color: #22c55e; }
+    .hover\:bg-green-600:hover { background-color: #16a34a; }
+    .bg-red-500 { background-color: #ef4444; }
+    .hover\:bg-red-600:hover { background-color: #dc2626; }
+    .bg-gray-500 { background-color: #6b7280; }
+    .hover\:bg-gray-600:hover { background-color: #4b5563; }
+    .h-24 { height: 6rem; }
+    .w-24 { width: 6rem; }
+    .mx-auto { margin-left: auto; margin-right: auto; }
+    .rounded-full { border-radius: 9999px; }
+    .overflow-y-auto { overflow-y: auto; }
+    .text-sm { font-size: 0.875rem; }
+    .ring { 
+      background: linear-gradient(145deg, #1a1a1a, #2d2d2d); 
+      border: 2px solid #333; 
+      box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3); 
+    }
+    .watch { 
+      background: linear-gradient(145deg, #333, #555); 
+      border: 2px solid #222; 
+      box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3); 
+    }
+    .ring-status { font-size: 0.9rem; }
+    .ring-black { color: #000; }
+    .ring-gold { color: #ffd700; }
+    .ring-silver { color: #c0c0c0; }
+    .vibrate-dot { animation: vibrate 0.2s linear; }
+    .vibrate-dash { animation: vibrate 0.6s linear; }
+    .vibrate-strong { animation: vibrate 0.8s linear; }
+    @keyframes vibrate {
+      0%, 100% { transform: translateX(0); }
+      20% { transform: translateX(-2px); }
+      40% { transform: translateX(2px); }
+      60% { transform: translateX(-2px); }
+      80% { transform: translateX(2px); }
+    }
+    .log-entry:hover { background-color: #f1f5f9; cursor: pointer; }
+    @media (max-width: 640px) {
+      .max-w-md { max-width: 90%; }
+      .h-24, .w-24 { height: 4rem; width: 4rem; }
+      .text-2xl { font-size: 1.25rem; }
+      .text-lg { font-size: 1rem; }
+    }
+  </style>
+</head>
+<body class="bg-gray-100 flex justify-center h-screen">
+  <div class="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
+    <h1 id="simulator-title" class="text-2xl font-bold mb-4 text-center">Haptic Ring and Watch Simulator</h1>
+    <div class="mb-4 flex flex-col items-center justify-center">
+      <div id="ringStatus" class="ring-status mb-2" role="status">Ring Paired: Black</div>
+      <select id="ringColor" class="w-full p-2 border rounded mb-2" aria-label="Select ring color" onchange="updateRingColor()">
+        <option value="black">Black</option>
+        <option value="gold">Gold</option>
+        <option value="silver">Silver</option>
+      </select>
+      <button onclick="authenticateRing()" class="w-full bg-green-500 text-white p-2 rounded hover:bg-green-600 mb-2" aria-label="Authenticate ring">Authenticate Ring</button>
+    </div>
+    <div class="mb-4">
+      <h2 class="text-lg font-semibold mb-2">Accessibility Settings</h2>
+      <div class="flex flex-col gap-2">
+        <label class="text-sm">Vibration Speed:
+          <select id="vibrationSpeed" class="w-full p-1 border rounded" aria-label="Select vibration speed">
+            <option value="slow">Slow (1s/dot)</option>
+            <option value="medium" selected>Medium (0.5s/dot)</option>
+            <option value="fast">Fast (0.25s/dot)</option>
+          </select>
+        </label>
+        <label class="text-sm">Vibration Intensity:
+          <select id="vibrationIntensity" class="w-full p-1 border rounded" aria-label="Select vibration intensity">
+            <option value="normal">Normal</option>
+            <option value="strong">Strong</option>
+          </select>
+        </label>
+        <label class="flex items-center gap-2 text-sm">
+          <input type="checkbox" id="audioFeedback" checked aria-label="Enable audio feedback">
+          Enable Audio Feedback
+        </label>
+      </div>
+    </div>
+    <div class="flex justify-between mb-4">
+      <div id="ring" class="ring h-24 w-24 rounded-full flex items-center justify-center text-white text-sm" role="region" aria-live="polite">
+        <span id="ringStatusText">Idle</span>
+      </div>
+      <div id="watch" class="watch h-24 w-24 rounded-full flex items-center justify-center text-white text-sm" role="region" aria-live="polite">
+        <span id="watchStatusText">Idle</span>
+      </div>
+    </div>
+    <div class="mb-4">
+      <h2 class="text-lg font-semibold">Send Alert</h2>
+      <select id="alertType" class="w-full p-2 border rounded mb-2" aria-label="Select predefined alert">
+        <option value="">Select Alert</option>
+        <option value="south">Navigation: South (S: … -)</option>
+        <option value="north">Navigation: North (N: -. -)</option>
+        <option value="east">Navigation: East (E: .-)</option>
+        <option value="west">Navigation: West (W: .-- -)</option>
+        <option value="clear">Clear (C: -.-.)</option>
+        <option value="regroup">Regroup (R: .-. .-)</option>
+        <option value="urgent-south">Urgent: South (US: ..- … -)</option>
+        <option value="crowd-south">Crowd Alert: South (CS: -.- … -)</option>
+        <option value="help">Emergency: Help (H: …. .-)</option>
+        <option value="ok">Confirmation: OK (O: --- -)</option>
+      </select>
+      <div class="flex flex-col gap-2">
+        <input type="text" id="customMessage" class="w-full p-2 border rounded" placeholder="Enter custom message (e.g., HI)" aria-label="Enter custom Morse code message">
+        <button onclick="sendCustomAlert()" class="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600" id="sendButton" disabled aria-label="Send alert">Send</button>
+      </div>
+    </div>
+    <div class="mb-4">
+      <h2 class="text-lg font-semibold">Message Log</h2>
+      <ul id="log" class="border p-2 h-32 overflow-y-auto text-sm" role="log" aria-live="polite"></ul>
+      <button onclick="clearLog()" class="w-full bg-gray-500 text-white p-2 rounded hover:bg-gray-600 mt-2" aria-label="Clear log">Clear Log</button>
+    </div>
+    <button onclick="resetSimulator()" class="w-full bg-red-500 text-white p-2 rounded hover:bg-red-600" aria-label="Reset simulator">Reset</button>
+  </div>
+  <script>
+    // Morse code mappings
+    const morseCodes = {
+      'south': '… -', 'north': '-. -', 'east': '. -', 'west': '.-- -',
+      'clear': '-.-.', 'regroup': '.-. .-', 'urgent-south': '..- … -',
+      'crowd-south': '-.- … -', 'help': '…. .-', 'ok': '--- -',
+      'A': '.-', 'B': '-...', 'C': '-.-.', 'D': '-..', 'E': '.',
+      'F': '..-.', 'G': '--.', 'H': '….', 'I': '..', 'J': '.---',
+      'K': '-.-', 'L': '.-..', 'M': '--', 'N': '-.', 'O': '---',
+      'P': '.--.', 'Q': '--.-', 'R': '.-.', 'S': '…', 'T': '-',
+      'U': '..-', 'V': '…-', 'W': '.--', 'X': '-..-', 'Y': '-.--',
+      'Z': '--..'
+    };
+
+    // Ring pairing status
+    let isAuthenticated = false;
+    let currentRing = 'black';
+    updateRingColor();
+    updateWatchTime();
+
+    // Update ring color and status
+    function updateRingColor() {
+      currentRing = document.getElementById('ringColor').value;
+      const ringStatus = document.getElementById('ringStatus');
+      ringStatus.textContent = `Ring Paired: ${currentRing.charAt(0).toUpperCase() + currentRing.slice(1)}`;
+      ringStatus.className = `ring-status ring-${currentRing}`;
+    }
+
+    // Update watch time
+    function updateWatchTime() {
+      const watchStatusText = document.getElementById('watchStatusText');
+      if (watchStatusText.textContent === 'Idle' || watchStatusText.textContent.startsWith('Time:')) {
+        const time = new Date().toLocaleTimeString();
+        watchStatusText.textContent = `Time: ${time}`;
+      }
+      setTimeout(updateWatchTime, 1000);
+    }
+
+    // Authenticate ring
+    function authenticateRing() {
+      isAuthenticated = true;
+      document.getElementById('sendButton').disabled = false;
+      logMessage('Ring authenticated successfully');
+    }
+
+    // Get vibration timing based on settings
+    function getVibrationTiming() {
+      const speed = document.getElementById('vibrationSpeed').value;
+      const intensity = document.getElementById('vibrationIntensity').value;
+      const baseTimings = {
+        slow: { dot: 1000, dash: 3000, gap: 1000 },
+        medium: { dot: 500, dash: 1500, gap: 500 },
+        fast: { dot: 250, dash: 750, gap: 250 }
+      };
+      const timings = baseTimings[speed];
+      if (intensity === 'strong') {
+        timings.dot *= 1.2;
+        timings.dash *= 1.2;
+      }
+      return timings;
+    }
+
+    // Play audio feedback
+    function playAudioFeedback(symbol) {
+      if (!document.getElementById('audioFeedback').checked) return;
+      const ctx = new AudioContext();
+      const oscillator = ctx.createOscillator();
+      oscillator.type = 'sine';
+      oscillator.frequency.setValueAtTime(800, ctx.currentTime);
+      oscillator.connect(ctx.destination);
+      const duration = symbol === '.' ? 0.2 : 0.6;
+      oscillator.start();
+      oscillator.stop(ctx.currentTime + duration);
+    }
+
+    // Vibrate device with Morse code pattern
+    function vibrateDevice(device, pattern, message) {
+      const timings = getVibrationTiming();
+      let delay = 0;
+      const ringStatusText = document.getElementById('ringStatusText');
+      const watchStatusText = document.getElementById('watchStatusText');
+      ringStatusText.textContent = `Vibrating: ${message}`;
+      watchStatusText.textContent = `Vibrating: ${message}`;
+
+      pattern.split('').forEach((symbol, index) => {
+        if (symbol === '.' || symbol === '-') {
+          const duration = symbol === '.' ? timings.dot : timings.dash;
+          const intensityClass = document.getElementById('vibrationIntensity').value === 'strong' ? 'vibrate-strong' : (symbol === '.' ? 'vibrate-dot' : 'vibrate-dash');
+          setTimeout(() => {
+            device.classList.add(intensityClass);
+            playAudioFeedback(symbol);
+            setTimeout(() => device.classList.remove(intensityClass), duration);
+          }, delay);
+          delay += duration + timings.gap;
+        } else if (symbol === ' ') {
+          delay += timings.gap * 2; // Word gap
+        }
+      });
+
+      setTimeout(() => {
+        if (device.id === 'ring') {
+          ringStatusText.textContent = 'Idle';
+        } else {
+          watchStatusText.textContent = 'Time: ' + new Date().toLocaleTimeString();
+        }
+      }, delay);
+    }
+
+    // Send predefined alert
+    function sendAlert() {
+      if (!isAuthenticated) {
+        logMessage('Error: Ring not authenticated');
+        return;
+      }
+      const alertType = document.getElementById('alertType').value;
+      if (!alertType) {
+        logMessage('Error: No alert selected');
+        return;
+      }
+      const pattern = morseCodes[alertType];
+      const displayText = alertType.replace(/-/g, ' ').toUpperCase();
+      vibrateDevice(document.getElementById('ring'), pattern, displayText);
+      vibrateDevice(document.getElementById('watch'), pattern, displayText);
+      logMessage(`Sent: ${displayText} (${pattern})`, { type: 'predefined', pattern, message: displayText });
+      console.log(`Encrypted signal sent: ${btoa(pattern)}`);
+    }
+
+    // Send custom Morse code message
+    function sendCustomAlert() {
+      if (!isAuthenticated) {
+        logMessage('Error: Ring not authenticated');
+        return;
+      }
+      const message = document.getElementById('customMessage').value.toUpperCase().trim();
+      if (!message.match(/^[A-Z\s]+$/)) {
+        logMessage('Error: Invalid message (use A-Z or spaces)');
+        return;
+      }
+      const pattern = message.split('').map(char => morseCodes[char] || '').join(' ').trim();
+      if (!pattern) {
+        logMessage('Error: No valid Morse code for message');
+        return;
+      }
+      vibrateDevice(document.getElementById('ring'), pattern, message);
+      vibrateDevice(document.getElementById('watch'), pattern, message);
+      logMessage(`Sent: ${message} (${pattern})`, { type: 'custom', pattern, message });
+      console.log(`Encrypted signal sent: ${btoa(pattern)}`);
+    }
+
+    // Log messages with replay functionality
+    function logMessage(message, data = {}) {
+      const log = document.getElementById('log');
+      const timestamp = new Date().toLocaleTimeString();
+      const logEntry = document.createElement('li');
+      logEntry.className = 'log-entry';
+      logEntry.textContent = `[${timestamp}] ${message}`;
+      logEntry.setAttribute('role', 'button');
+      logEntry.setAttribute('tabindex', '0');
+      if (data.type) {
+        logEntry.dataset.type = data.type;
+        logEntry.dataset.pattern = data.pattern;
+        logEntry.dataset.message = data.message;
+        logEntry.addEventListener('click', () => replayMessage(data));
+        logEntry.addEventListener('keypress', (e) => {
+          if (e.key === 'Enter') replayMessage(data);
+        });
+      }
+      log.appendChild(logEntry);
+      log.scrollTop = log.scrollHeight;
+    }
+
+    // Replay a logged message
+    function replayMessage(data) {
+      if (!isAuthenticated) {
+        logMessage('Error: Ring not authenticated');
+        return;
+      }
+      vibrateDevice(document.getElementById('ring'), data.pattern, data.message);
+      vibrateDevice(document.getElementById('watch'), data.pattern, data.message);
+      logMessage(`Replayed: ${data.message} (${data.pattern})`, data);
+    }
+
+    // Clear log
+    function clearLog() {
+      document.getElementById('log').innerHTML = '';
+      logMessage('Log cleared');
+    }
+
+    // Reset simulator
+    function resetSimulator() {
+      isAuthenticated = false;
+      document.getElementById('sendButton').disabled = true;
+      document.getElementById('ringStatusText').textContent = 'Idle';
+      document.getElementById('watchStatusText').textContent = 'Time: ' + new Date().toLocaleTimeString();
+      document.getElementById('log').innerHTML = '';
+      logMessage('Simulator reset');
+    }
+
+    // Initialize event listeners
+    document.getElementById('alertType').addEventListener('change', () => {
+      if (document.getElementById('alertType').value) sendAlert();
+    });
+    document.getElementById('customMessage').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') sendCustomAlert();
+    });
+  </script>
+</body>
+</html>
